@@ -1,6 +1,10 @@
 #!/bin/bash
 # https://help.ubuntu.com/community/LiveCDCustomization
 
+#
+# License CC-BY-SA 3.0: http://creativecommons.org/licenses/by-sa/3.0/
+#
+
 # häälestus
 #
 # mõned muutujad, et lugeda oleks kergem

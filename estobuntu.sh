@@ -8,45 +8,11 @@
 # häälestus
 #
 # mõned muutujad, et lugeda oleks kergem
-algne_iso="ubuntu-20.04-desktop-amd64.iso"
-tulemus_iso="estobuntu-20.04-desktop-amd64.iso"
-algne_nimi='Ubuntu 20.04 LTS "Focal Fossa" - Release amd64'
-tulemus_nimi="Estobuntu 20.04 LTS"
-
-# kontrollib kas skript käivitatakse rootina
-if [ $(whoami) != "root" ]
-then
-    echo "'sudo ./estobuntu.sh' palun :)" && exit 126
-fi
-
-# originaalse ISO lahti pakkimine
-#
-mkdir mnt
-mount -o loop $algne_iso mnt
-mkdir extract-cd
-rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
-unsquashfs mnt/casper/filesystem.squashfs
-mv squashfs-root edit
-
-# chroot
-#
-mount -o bind /run/ edit/run
-cp /etc/hosts edit/etc/
-mount --bind /dev/ edit/dev
-chroot edit /bin/bash << "EOT"
-# chrooti häälestus
-mount -t proc none /proc
-mount -t sysfs none /sys
-mount -t devpts none /dev/pts
-export HOME=/root
-export LC_ALL=C
-###
-# sources.list'i muutmine
-sed -i -e "s/focal main restricted/focal main universe/" /etc/apt/sources.list
-sed -i -e "s/focal-updates main restricted/focal-updates main universe/" /etc/apt/sources.list
-apt update
-# ID tarkvara
-# https://installer.id.ee/media/ubuntu/
+algne_iso="ubuntu-20.04.1-desktop-amd64.iso"
+tulemus_iso="estobuntu-20.04.1-desktop-amd64.iso"
+algne_nimi='Ubuntu 20.04.1 LTS "Focal Fossa" - Release amd64'
+tulemus_nimi="Estobuntu 20.04.1 LTS"
+#https://installer.id.ee/media/ubuntu/
 RIA_KEY="""-----BEGIN PGP PUBLIC KEY BLOCK-----
 Comment: GPGTools - https://gpgtools.org
 
@@ -100,8 +66,46 @@ K2czbpReKw==
 =aSyh
 -----END PGP PUBLIC KEY BLOCK-----
 """
+
+# kontrollib kas skript käivitatakse rootina
+if [ $(whoami) != "root" ]
+then
+    echo "'sudo ./estobuntu.sh' palun :)" && exit 126
+fi
+
+# vajalik isohybrid käskluse jaoks
+sudo apt install syslinux-utils
+
+# originaalse ISO lahti pakkimine
+#
+mkdir mnt
+mount -o loop $algne_iso mnt
+mkdir extract-cd
+rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
+unsquashfs mnt/casper/filesystem.squashfs
+mv squashfs-root edit
+
+# chroot
+#
+mount -o bind /run/ edit/run
+cp /etc/hosts edit/etc/
+mount --bind /dev/ edit/dev
+chroot edit /bin/bash << "EOT"
+# chrooti häälestus
+mount -t proc none /proc
+mount -t sysfs none /sys
+mount -t devpts none /dev/pts
+export HOME=/root
+export LC_ALL=C
+###
+# sources.list'i muutmine
+sed -i -e "s/focal main restricted/focal main universe/" /etc/apt/sources.list
+sed -i -e "s/focal-updates main restricted/focal-updates main universe/" /etc/apt/sources.list
+apt update
+# ID tarkvara
+# https://installer.id.ee/media/ubuntu/
 echo "$RIA_KEY" | apt-key add -
-echo "deb [trusted=yes] https://installer.id.ee/media/ubuntu/ eoan main" | tee /etc/apt/sources.list.d/ria-repository.list # vana versioon (19.10); hetkel uuemat pole
+echo "deb [trusted=yes] https://installer.id.ee/media/ubuntu/ focal main" | tee /etc/apt/sources.list.d/ria-repository.list
 apt install ca-certificates --reinstall --assume-yes
 apt update
 apt install opensc open-eid --assume-yes
@@ -123,7 +127,7 @@ umount edit/run
 
 # ISO kokku panemine
 #
-echo "et" > extract-cd/isolinux/lang # ma ei tea kas see rida päriselt midagi teeb
+echo "et" > extract-cd/isolinux/lang
 
 # manifest
 chmod +w extract-cd/casper/filesystem.manifest
@@ -142,23 +146,6 @@ sed -i -e "s/$algne_nimi/$tulemus_nimi/" extract-cd/README.diskdefines
 
 cd extract-cd
 
-# UEFI
-# https://bazaar.launchpad.net/~timo-jyrinki/ubuntu-fi-remix/main/view/head:/finnish-remix.sh
-# pole aimugi kas see töötab - pole endal võimalik testida
-#sed -i '6i    loadfont /boot/grub/fonts/unicode.pf2' boot/grub/grub.cfg
-#sed -i '7i    set locale_dir=$prefix/locale' boot/grub/grub.cfg
-#sed -i '8i    set lang=et_EE' boot/grub/grub.cfg
-#sed -i '9i    insmod gettext' boot/grub/grub.cfg
-#sed -i 's%splash%splash locale=et_EE.UTF-8 console-setup/layoutcode=et%' boot/grub/grub.cfg
-#sed -i 's/Try Ubuntu without installing/Proovi Ubuntut ilma paigaldamiseta/' boot/grub/grub.cfg
-#sed -i 's/Install Ubuntu/Paigalda Ubuntu/' boot/grub/grub.cfg
-#sed -i 's/OEM install (for manufacturers)/OEM-paigaldus (arvutitootjatele)/' boot/grub/grub.cfg
-#sed -i 's/Check disc for defects/Kontrolli kõvaketast/' boot/grub/grub.cfg
-#mkdir -p boot/grub/locale/
-#mkdir -p boot/grub/fonts/
-#cp -a /boot/grub*/locale/et.mo boot/grub/locale/
-#cp -a /boot/grub*/fonts/unicode.pf2 boot/grub/fonts/
-
 # eesti keele vaikimisi keeleks seadmine
 # https://github.com/estobuntu/ubuntu-estonian-remix/blob/master/makeRemix.sh
 echo "d-i debian-installer/locale string et_EE.UTF-8" >> preseed/ubuntu.seed
@@ -171,7 +158,9 @@ rm md5sum.txt
 find -type f -print0 | sudo xargs -0 md5sum | grep -v isolinux/boot.cat | sudo tee md5sum.txt
 
 # loo ISO
-mkisofs -D -r -V "$tulemus_nimi" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../$tulemus_iso .
+genisoimage -D -r -V "$tulemus_nimi" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../$tulemus_iso .
+# teeb uue iso usb pealt käivitatavaks
+isohybrid ../$tulemus_iso
 
 # puhastus
 

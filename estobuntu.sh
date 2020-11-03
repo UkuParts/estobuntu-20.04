@@ -85,6 +85,9 @@ rsync --exclude=/casper/filesystem.squashfs -a mnt/ extract-cd
 unsquashfs mnt/casper/filesystem.squashfs
 mv squashfs-root edit
 
+# muudab taustpildi (:
+cp logo-plus-blue-background.png edit/usr/share/backgrounds/warty-final-ubuntu.png
+
 # chroot
 #
 mount -o bind /run/ edit/run
@@ -159,11 +162,11 @@ find -type f -print0 | sudo xargs -0 md5sum | grep -v isolinux/boot.cat | sudo t
 
 # loo ISO
 genisoimage -D -r -V "$tulemus_nimi" -cache-inodes -J -l -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -o ../$tulemus_iso .
+
 # teeb uue iso usb pealt käivitatavaks
 isohybrid ../$tulemus_iso
 
 # puhastus
-
 cd ..
 umount mnt
 rm -r edit extract-cd mnt
